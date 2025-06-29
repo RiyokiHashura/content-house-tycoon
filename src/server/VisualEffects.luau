@@ -7,7 +7,7 @@ function VisualEffects.addOrbGlow(orb)
 	-- Add pulsing glow effect for streamer theme
 	local pointLight = Instance.new("PointLight")
 	pointLight.Brightness = 2
-	pointLight.Color = Color3.new(1, 0.2, 0.2) -- Red glow like notifications
+	pointLight.Color = Color3.new(0.5, 0.2, 1) -- Purple glow like Twitch
 	pointLight.Range = 8
 	pointLight.Parent = orb
 	
@@ -43,7 +43,7 @@ function VisualEffects.playMergeEffect(mainOrb, absorbedOrb)
 	
 	beam.Attachment0 = attachment1
 	beam.Attachment1 = attachment2
-	beam.Color = ColorSequence.new(Color3.new(1, 0.2, 0.2))
+	beam.Color = ColorSequence.new(Color3.new(0.5, 0.2, 1)) -- Purple like Twitch
 	beam.Width0 = 0.5
 	beam.Width1 = 0.1
 	beam.FaceCamera = true

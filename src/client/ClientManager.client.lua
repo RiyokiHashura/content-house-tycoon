@@ -42,8 +42,8 @@ local function setupOrbMagnetism(plot)
 				orb.Anchored = true
 				
 				-- Calculate dynamic speed based on distance (closer = faster)
-				local speedMultiplier = math.max(0.3, 1 - (distance / TycoonConfig.Orb.CollectionRange))
-				local tweenDuration = TycoonConfig.Orb.MoveSpeed * speedMultiplier
+				local speedMultiplier = math.max(0.5, 1 - (distance / TycoonConfig.Orb.CollectionRange))
+				local tweenDuration = TycoonConfig.Orb.MoveSpeed * speedMultiplier * 1.3 -- Slightly slower
 				
 				-- Create smooth movement toward player
 				local tweenInfo = TweenInfo.new(
@@ -84,7 +84,7 @@ local function setupOrbMagnetism(plot)
 						local particle = Instance.new("Part")
 						particle.Size = Vector3.new(0.2, 0.2, 0.2)
 						particle.Material = Enum.Material.Neon
-						particle.BrickColor = BrickColor.new("Really red")
+						particle.BrickColor = BrickColor.new("Bright violet") -- Purple like Twitch
 						particle.Shape = Enum.PartType.Ball
 						particle.Anchored = true
 						particle.CanCollide = false

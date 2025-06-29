@@ -18,7 +18,7 @@ function OrbService.createOrb(player, plot, spawnCFrame)
 	
 	-- Setup orb properties
 	orb.Material = Enum.Material.Neon
-	orb.BrickColor = BrickColor.new("Really red")
+	orb.BrickColor = BrickColor.new("Bright violet") -- Twitch purple theme
 	orb.Shape = Enum.PartType.Ball
 	orb.Size = Vector3.new(1, 1, 1)
 	orb.CanCollide = false
@@ -40,9 +40,9 @@ function OrbService._launchOrb(orb, plot)
 	local bodyVelocity = Instance.new("BodyVelocity")
 	bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
 	bodyVelocity.Velocity = Vector3.new(
-		math.random(-8, 8),  -- Random horizontal direction
-		math.random(12, 18), -- Upward arc
-		math.random(-8, 8)
+		math.random(-6, 6),  -- Reduced horizontal spread
+		math.random(8, 12),  -- Lower arc height
+		math.random(-6, 6)
 	)
 	bodyVelocity.Parent = orb
 	
@@ -50,8 +50,8 @@ function OrbService._launchOrb(orb, plot)
 	local plotBase = plot:FindFirstChild("Base")
 	local landingY = plotBase and (plotBase.Position.Y + plotBase.Size.Y/2 + 1) or orb.Position.Y
 	
-	-- Smooth transition to floating after physics arc
-	task.delay(1.2, function()
+	-- Smooth transition to floating after physics arc (faster)
+	task.delay(0.8, function()
 		if not orb.Parent then return end
 		
 		-- Remove ejection velocity
@@ -63,9 +63,9 @@ function OrbService._launchOrb(orb, plot)
 		local currentPos = orb.Position
 		local targetPos = Vector3.new(currentPos.X, landingY, currentPos.Z)
 		
-		-- Create smooth descent to landing position
+		-- Create smooth descent to landing position (faster)
 		local descendTween = TweenService:Create(orb, 
-			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 			{ Position = targetPos }
 		)
 		
@@ -77,8 +77,8 @@ function OrbService._launchOrb(orb, plot)
 		descendTween.Completed:Connect(function()
 			OrbService._startFloatingAnimation(orb)
 			
-			-- Check for merging after settling
-			task.delay(1, function()
+			-- Check for merging after settling (faster)
+			task.delay(0.5, function()
 				if orb.Parent then
 					OrbService._checkOrbMerging(orb, plot)
 				end
