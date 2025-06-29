@@ -68,4 +68,57 @@ function VisualEffects.playMergeEffect(mainOrb, absorbedOrb)
 	end)
 end
 
+function VisualEffects.playCollectionEffect(position)
+	-- Create burst effect at collection position
+	local effect = Instance.new("Part")
+	effect.Name = "CollectionBurst"
+	effect.Anchored = true
+	effect.CanCollide = false
+	effect.Transparency = 1
+	effect.Size = Vector3.new(1, 1, 1)
+	effect.Position = position
+	effect.Parent = workspace
+	
+	-- Attachment for particles
+	local attachment = Instance.new("Attachment")
+	attachment.Parent = effect
+	
+	-- Burst particle effect
+	local particles = Instance.new("ParticleEmitter")
+	particles.Parent = attachment
+	particles.Texture = "rbxassetid://8560915132" -- Sparkle texture
+	particles.Rate = 500 -- High burst rate
+	particles.Lifetime = NumberRange.new(0.5, 1.5)
+	particles.Speed = NumberRange.new(10, 25)
+	particles.LightEmission = 1
+	particles.LightInfluence = 0
+	
+	-- Purple burst colors
+	particles.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),      -- White center
+		ColorSequenceKeypoint.new(0.5, Color3.new(0.8, 0.4, 1)), -- Purple mid
+		ColorSequenceKeypoint.new(1, Color3.new(0.5, 0.2, 1))    -- Deep purple
+	}
+	
+	particles.Size = NumberSequence.new{
+		NumberSequenceKeypoint.new(0, 5),     -- Start big
+		NumberSequenceKeypoint.new(0.5, 8),   -- Peak size
+		NumberSequenceKeypoint.new(1, 0)      -- Fade out
+	}
+	
+	-- Stop emitting after burst
+	task.delay(0.1, function()
+		if particles.Parent then
+			particles.Rate = 0
+		end
+	end)
+	
+	-- Cleanup after particles die
+	task.delay(2, function()
+		if effect.Parent then
+			effect:Destroy()
+		end
+	end)
+end
+
 return VisualEffects 
