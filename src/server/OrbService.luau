@@ -9,6 +9,98 @@ local VisualEffects = require(script.Parent.VisualEffects)
 
 local OrbService = {}
 
+-- DEBUG SYSTEM
+local DEBUG_ENABLED = true
+local debugConnections = {}
+local orbDebugData = {}
+
+local function debugLog(orbId, message, data)
+	if not DEBUG_ENABLED then return end
+	local timestamp = string.format("%.2f", tick())
+	local dataStr = data and (" | Data: " .. tostring(data)) or ""
+	print(string.format("[ORB-DEBUG][%s][%s] %s%s", timestamp, orbId or "SYSTEM", message, dataStr))
+end
+
+local function startOrbTracking(orb)
+	if not DEBUG_ENABLED then return end
+	
+	local orbId = "Orb_" .. tostring(orb):sub(-8)
+	orbDebugData[orb] = {
+		id = orbId,
+		spawnTime = tick(),
+		lastVelocity = Vector3.new(0, 0, 0),
+		lastPosition = orb.Position,
+		phase = "SPAWNING"
+	}
+	
+	debugLog(orbId, "SPAWN", string.format("Pos: %s", tostring(orb.Position)))
+	
+	-- Track velocity and position changes
+	local connection
+	connection = RunService.Heartbeat:Connect(function()
+		if not orb.Parent then
+			connection:Disconnect()
+			debugConnections[orb] = nil
+			return
+		end
+		
+		local data = orbDebugData[orb]
+		if not data then return end
+		
+		local currentVel = orb.AssemblyLinearVelocity
+		local currentPos = orb.Position
+		local velChange = (currentVel - data.lastVelocity).Magnitude
+		local posChange = (currentPos - data.lastPosition).Magnitude
+		
+		-- Log significant velocity changes
+		if velChange > 5 then
+			debugLog(data.id, "VELOCITY_CHANGE", string.format("From %s to %s", tostring(data.lastVelocity), tostring(currentVel)))
+		end
+		
+		-- Log phase transitions
+		local newPhase = data.phase
+		if currentVel.Magnitude > 15 then
+			newPhase = "LAUNCHING"
+		elseif currentVel.Magnitude > 5 then
+			newPhase = "FLYING"
+		elseif currentVel.Magnitude > 1 then
+			newPhase = "SETTLING"
+		elseif currentVel.Magnitude < 1 and newPhase ~= "IDLE" then
+			newPhase = "IDLE"
+		end
+		
+		if newPhase ~= data.phase then
+			debugLog(data.id, "PHASE_CHANGE", string.format("%s -> %s (Vel: %.2f)", data.phase, newPhase, currentVel.Magnitude))
+			data.phase = newPhase
+		end
+		
+		-- Log position every 2 seconds when idle
+		if newPhase == "IDLE" and tick() - (data.lastPositionLog or 0) > 2 then
+			debugLog(data.id, "POSITION_CHECK", string.format("Y: %.2f, Vel: %.2f", currentPos.Y, currentVel.Magnitude))
+			data.lastPositionLog = tick()
+		end
+		
+		data.lastVelocity = currentVel
+		data.lastPosition = currentPos
+	end)
+	
+	debugConnections[orb] = connection
+end
+
+local function stopOrbTracking(orb)
+	if debugConnections[orb] then
+		debugConnections[orb]:Disconnect()
+		debugConnections[orb] = nil
+	end
+	
+	if orbDebugData[orb] then
+		local data = orbDebugData[orb]
+		local lifetime = tick() - data.spawnTime
+		debugLog(data.id, "DESTROYED", string.format("Lifetime: %.2fs, Final Phase: %s", lifetime, data.phase))
+		orbDebugData[orb] = nil
+	end
+end
+
 -- Hypnotic collection constants
 local COLLECTION_DISTANCE = 4 -- Core collection range
 local MAGNETIC_DISTANCE = 8   -- Attraction activation range
@@ -54,6 +146,9 @@ function OrbPool:GetOrb()
 end
 
 function OrbPool:ReturnOrb(orb)
+	-- Stop tracking before cleanup
+	stopOrbTracking(orb)
+	
 	-- Find and remove from active
 	for i, activeOrb in ipairs(self.active) do
 		if activeOrb == orb then
@@ -90,8 +185,13 @@ function OrbService.createOrb(player, plot, spawnCFrame)
 	orb:SetAttribute("OwnerId", player.UserId)
 	orb:SetAttribute("Value", TycoonConfig.Stream.BaseReward)
 	
+	-- Start comprehensive tracking
+	startOrbTracking(orb)
+	debugLog(orbDebugData[orb].id, "SETUP_COMPLETE", string.format("Owner: %s, Value: %d", player.Name, TycoonConfig.Stream.BaseReward))
+	
 	-- Add hypnotic visual effects
 	OrbService._setupHypnoticEffects(orb)
+	debugLog(orbDebugData[orb].id, "EFFECTS_ADDED", "Particles and lighting applied")
 	
 	-- Launch with modern physics
 	OrbService._launchOrbHypnotic(orb, plot)
@@ -108,6 +208,9 @@ function OrbService._launchOrbHypnotic(orb, plot)
 	local forwardDirection = Vector3.new(0, 0, -1)
 	if streamingPC then
 		forwardDirection = streamingPC.CFrame.LookVector
+		debugLog(orbDebugData[orb].id, "PC_DIRECTION", string.format("Forward: %s", tostring(forwardDirection)))
+	else
+		debugLog(orbDebugData[orb].id, "PC_MISSING", "Using default forward direction")
 	end
 	
 	-- Modern physics with AssemblyLinearVelocity for better performance
@@ -115,11 +218,22 @@ function OrbService._launchOrbHypnotic(orb, plot)
 	local sideSpread = math.random(-3, 3)
 	local upwardForce = math.random(25, 35) -- Sweet spot for bounce height
 	
-	orb.AssemblyLinearVelocity = Vector3.new(
+	local finalVelocity = Vector3.new(
 		forwardDirection.X * forwardStrength + sideSpread,
 		upwardForce,
 		forwardDirection.Z * forwardStrength + sideSpread
 	)
+	
+	debugLog(orbDebugData[orb].id, "LAUNCH_PARAMS", string.format("Forward: %d, Side: %d, Up: %d", forwardStrength, sideSpread, upwardForce))
+	debugLog(orbDebugData[orb].id, "LAUNCH_VELOCITY", string.format("Applied: %s", tostring(finalVelocity)))
+	
+	orb.AssemblyLinearVelocity = finalVelocity
+	
+	-- Check if velocity was actually applied
+	task.wait(0.1)
+	if orb.Parent then
+		debugLog(orbDebugData[orb].id, "VELOCITY_CONFIRM", string.format("Actual: %s", tostring(orb.AssemblyLinearVelocity)))
+	end
 end
 
 function OrbService._setupHypnoticEffects(orb)
@@ -175,6 +289,8 @@ function OrbService._setupHypnoticEffects(orb)
 end
 
 function OrbService._setupMagneticCollection(orb, player)
+	debugLog(orbDebugData[orb].id, "MAGNETISM_ENABLED", string.format("Player: %s, Range: %d/%d", player.Name, COLLECTION_DISTANCE, MAGNETIC_DISTANCE))
+	
 	local connection
 	local isBeingCollected = false
 	
@@ -199,6 +315,7 @@ function OrbService._setupMagneticCollection(orb, player)
 			if distance <= COLLECTION_DISTANCE and not isBeingCollected then
 				isBeingCollected = true
 				orb:SetAttribute("Floating", false)
+				debugLog(orbDebugData[orb].id, "COLLECTION_START", string.format("Distance: %.2f", distance))
 				OrbService._collectOrbHypnotic(orb, player)
 				connection:Disconnect()
 				return
@@ -213,6 +330,7 @@ function OrbService._setupMagneticCollection(orb, player)
 	
 	-- Cleanup on orb destruction
 	orb.Destroying:Connect(function()
+		debugLog(orbDebugData[orb].id, "MAGNETISM_CLEANUP", "Connection disconnected")
 		connection:Disconnect()
 	end)
 end
@@ -353,5 +471,91 @@ task.spawn(function()
 		task.wait(1/30) -- 30 Hz global update rate
 	end
 end)
+
+-- DEBUG COMMANDS (for command bar usage)
+OrbService.DEBUG = {
+	-- Toggle debug logging
+	setDebug = function(enabled)
+		DEBUG_ENABLED = enabled
+		debugLog("SYSTEM", "DEBUG_TOGGLE", enabled and "ENABLED" or "DISABLED")
+	end,
+	
+	-- Get summary of all active orbs
+	getOrbSummary = function()
+		debugLog("SYSTEM", "=== ORB SUMMARY ===")
+		debugLog("SYSTEM", "POOL_STATS", string.format("Active: %d, Available: %d", #orbPool.active, #orbPool.available))
+		
+		for orb, data in pairs(orbDebugData) do
+			if orb.Parent then
+				local vel = orb.AssemblyLinearVelocity
+				local pos = orb.Position
+				debugLog(data.id, "STATUS", string.format("Phase: %s, Y: %.2f, Vel: %.2f, Age: %.2fs", 
+					data.phase, pos.Y, vel.Magnitude, tick() - data.spawnTime))
+			end
+		end
+		debugLog("SYSTEM", "=== END SUMMARY ===")
+	end,
+	
+	-- Test orb creation at player position
+	testSpawn = function(playerName)
+		local player = game.Players:FindFirstChild(playerName)
+		if not player or not player.Character then
+			debugLog("SYSTEM", "TEST_SPAWN_FAIL", "Player not found or no character")
+			return
+		end
+		
+		local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+		if not hrp then
+			debugLog("SYSTEM", "TEST_SPAWN_FAIL", "No HumanoidRootPart")
+			return
+		end
+		
+		-- Find player's plot
+		local plot = nil
+		for _, p in ipairs(workspace:GetChildren()) do
+			if p.Name:find("Plot") and p:GetAttribute("OwnerId") == player.UserId then
+				plot = p
+				break
+			end
+		end
+		
+		if not plot then
+			debugLog("SYSTEM", "TEST_SPAWN_FAIL", "No plot found for player")
+			return
+		end
+		
+		local spawnPos = hrp.Position + Vector3.new(0, 5, 0)
+		local orb = OrbService.createOrb(player, plot, CFrame.new(spawnPos))
+		debugLog("SYSTEM", "TEST_SPAWN_SUCCESS", string.format("Created orb at %s", tostring(spawnPos)))
+		return orb
+	end,
+	
+	-- Check floor positions
+	checkFloors = function()
+		debugLog("SYSTEM", "=== FLOOR CHECK ===")
+		for _, plot in ipairs(workspace:GetChildren()) do
+			if plot.Name:find("Plot") then
+				local base = plot:FindFirstChild("Base")
+				if base then
+					local floorY = base.Position.Y + base.Size.Y/2
+					debugLog("SYSTEM", "FLOOR_INFO", string.format("Plot: %s, Floor Y: %.2f", plot.Name, floorY))
+				end
+			end
+		end
+		debugLog("SYSTEM", "=== END FLOOR CHECK ===")
+	end,
+	
+	-- Force cleanup all orbs
+	cleanupAll = function()
+		local count = 0
+		for orb, _ in pairs(orbDebugData) do
+			if orb.Parent then
+				orbPool:ReturnOrb(orb)
+				count = count + 1
+			end
+		end
+		debugLog("SYSTEM", "CLEANUP_ALL", string.format("Cleaned up %d orbs", count))
+	end
+}
 
 return OrbService 
