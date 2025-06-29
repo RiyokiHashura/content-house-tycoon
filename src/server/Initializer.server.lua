@@ -7,6 +7,8 @@ local DataManager = require(script.Parent.DataManager)
 local PlotManager = require(script.Parent.PlotManager)
 local TycoonManager = require(script.Parent.TycoonManager)
 local GameEvents = require(ReplicatedStorage.Shared.GameEvents)
+local StreamingService = require(script.Parent.StreamingService)
+local RoomService = require(script.Parent.RoomService)
 
 -- Disable auto character spawning
 Players.CharacterAutoLoads = false
@@ -31,6 +33,12 @@ local function onPlayerAdded(player)
 	-- Small delay to prevent race conditions
 	task.wait(0.5)
 	player:LoadCharacter()
+	
+	-- Setup room system after plot is ready
+	task.wait(0.5)
+	if plotData.plot then
+		RoomService.setupPlayerRooms(player, plotData.plot)
+	end
 end
 
 local function onPlayerRemoving(player)
@@ -58,11 +66,14 @@ GameEvents.StreamToggle.OnServerEvent:Connect(function(player)
 	end
 end)
 
+-- DISABLED: Old orb collection handler - now handled by OrbService directly
+--[[
 GameEvents.OrbCollected.OnServerEvent:Connect(function(player, orb)
 	if orb and orb.Parent then
 		TycoonManager.collectOrb(player, orb)
 	end
 end)
+--]]
 
 -- Connect events
 Players.PlayerAdded:Connect(onPlayerAdded)

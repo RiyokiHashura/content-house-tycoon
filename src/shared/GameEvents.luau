@@ -17,5 +17,6 @@ end
 -- Initialize events
 GameEvents.StreamToggle = createRemoteEvent("StreamToggle")
 GameEvents.OrbCollected = createRemoteEvent("OrbCollected")
+GameEvents.RoomPurchased = createRemoteEvent("RoomPurchased")
 
 return GameEvents 

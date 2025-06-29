@@ -11,7 +11,8 @@ local TycoonConfig = require(ReplicatedStorage.Shared.TycoonConfig)
 local setupComplete = false
 local orbConnections = {}
 
--- Handle orb magnetism and collection (declare first)
+-- DISABLED: Handle orb magnetism and collection - now handled server-side
+--[[
 local function setupOrbMagnetism(plot)
 	local function onOrbAdded(orb)
 		if orb.Name ~= "HypeOrb" then return end
@@ -158,6 +159,106 @@ local function setupOrbMagnetism(plot)
 		end
 	end
 end
+--]]
+
+-- Simple Management UI
+local function openManagementUI()
+	-- Close any existing management UI
+	local existingUI = player.PlayerGui:FindFirstChild("ManagementUI")
+	if existingUI then
+		existingUI:Destroy()
+	end
+	
+	-- Create simple management UI
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "ManagementUI"
+	screenGui.Parent = player.PlayerGui
+	
+	-- Main frame
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0.6, 0, 0.7, 0)
+	frame.Position = UDim2.new(0.2, 0, 0.15, 0)
+	frame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	frame.BorderSizePixel = 0
+	frame.Parent = screenGui
+	
+	-- Round corners
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = frame
+	
+	-- Title
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, 0, 0.15, 0)
+	title.Position = UDim2.new(0, 0, 0, 0)
+	title.BackgroundTransparency = 1
+	title.Text = "📱 CONTENT CREATOR DASHBOARD"
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.TextScaled = true
+	title.Font = Enum.Font.GothamBold
+	title.Parent = frame
+	
+	-- Stats display
+	local statsFrame = Instance.new("Frame")
+	statsFrame.Size = UDim2.new(0.9, 0, 0.3, 0)
+	statsFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+	statsFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+	statsFrame.BorderSizePixel = 0
+	statsFrame.Parent = frame
+	
+	local statsCorner = Instance.new("UICorner")
+	statsCorner.CornerRadius = UDim.new(0, 8)
+	statsCorner.Parent = statsFrame
+	
+	-- Helper function to format numbers
+	local function formatNumber(num)
+		if num >= 1000000 then
+			return string.format("%.1fM", num / 1000000)
+		elseif num >= 1000 then
+			return string.format("%.1fK", num / 1000)
+		else
+			return tostring(num)
+		end
+	end
+	
+	-- Get player stats
+	local leaderstats = player:FindFirstChild("leaderstats")
+	local subs = leaderstats and leaderstats:FindFirstChild("Subscribers") and leaderstats.Subscribers.Value or 0
+	local cash = leaderstats and leaderstats:FindFirstChild("Cash") and leaderstats.Cash.Value or 0
+	
+	-- Stats text
+	local statsText = Instance.new("TextLabel")
+	statsText.Size = UDim2.new(1, 0, 1, 0)
+	statsText.BackgroundTransparency = 1
+	statsText.Text = string.format("🔥 %s SUBSCRIBERS\n💰 $%s CASH", formatNumber(subs), formatNumber(cash))
+	statsText.TextColor3 = Color3.fromRGB(255, 255, 255)
+	statsText.TextScaled = true
+	statsText.Font = Enum.Font.Gotham
+	statsText.Parent = statsFrame
+	
+	-- Close button
+	local closeButton = Instance.new("TextButton")
+	closeButton.Size = UDim2.new(0.2, 0, 0.12, 0)
+	closeButton.Position = UDim2.new(0.4, 0, 0.8, 0)
+	closeButton.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
+	closeButton.BorderSizePixel = 0
+	closeButton.Text = "❌ CLOSE"
+	closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	closeButton.TextScaled = true
+	closeButton.Font = Enum.Font.GothamBold
+	closeButton.Parent = frame
+	
+	local closeCorner = Instance.new("UICorner")
+	closeCorner.CornerRadius = UDim.new(0, 6)
+	closeCorner.Parent = closeButton
+	
+	-- Close button functionality
+	closeButton.MouseButton1Click:Connect(function()
+		screenGui:Destroy()
+	end)
+	
+	print("[Client] Management UI opened")
+end
 
 -- Setup plot interactions when character loads
 local function setupPlotInteractions()
@@ -202,8 +303,23 @@ local function setupPlotInteractions()
 		end
 	end
 	
-	-- Setup orb magnetism for this plot
-	setupOrbMagnetism(myPlot)
+	-- Setup ManagementTerminal interaction
+	local managementPC = myPlot:FindFirstChild("ManagementTerminal")
+	if managementPC then
+		local prompt = managementPC:FindFirstChild("ProximityPrompt")
+		if prompt then
+			-- Handle proximity prompt
+			prompt.Triggered:Connect(function()
+				print("[Client] Management PC accessed!")
+				openManagementUI()
+			end)
+			
+			print("[Client] Management PC interactions setup")
+		end
+	end
+	
+	-- DISABLED: Setup orb magnetism - now handled server-side
+	-- setupOrbMagnetism(myPlot)
 end
 
 -- Character setup
@@ -225,5 +341,7 @@ player.CharacterRemoving:Connect(function()
 	end
 	orbConnections = {}
 end)
+
+
 
 print("[Client] Tycoon MVP client is ready!") 
