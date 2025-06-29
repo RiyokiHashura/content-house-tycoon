@@ -50,40 +50,65 @@ function OrbService._launchOrb(orb, plot)
 	local plotBase = plot:FindFirstChild("Base")
 	local landingY = plotBase and (plotBase.Position.Y + plotBase.Size.Y/2 + 1) or orb.Position.Y
 	
-	-- Smooth transition to floating after physics arc (faster)
+	-- Natural physics transition instead of abrupt anchoring
 	task.delay(0.8, function()
 		if not orb.Parent then return end
 		
-		-- Remove ejection velocity
+		-- Gradually transition from explosive velocity to guided descent
 		if bodyVelocity and bodyVelocity.Parent then
-			bodyVelocity:Destroy()
-		end
-		
-		-- Smooth transition to floating position instead of teleporting
-		local currentPos = orb.Position
-		local targetPos = Vector3.new(currentPos.X, landingY, currentPos.Z)
-		
-		-- Create smooth descent to landing position (faster)
-		local descendTween = TweenService:Create(orb, 
-			TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{ Position = targetPos }
-		)
-		
-		-- Anchor and start descent
-		orb.Anchored = true
-		descendTween:Play()
-		
-		-- Start floating animation after landing
-		descendTween.Completed:Connect(function()
-			OrbService._startFloatingAnimation(orb)
+			-- Reduce the upward velocity to create natural arc completion
+			local currentVel = bodyVelocity.Velocity
+			bodyVelocity.Velocity = Vector3.new(
+				currentVel.X * 0.3, -- Reduce horizontal momentum
+				math.min(currentVel.Y, -2), -- Ensure downward movement
+				currentVel.Z * 0.3
+			)
 			
-			-- Check for merging after settling (faster)
-			task.delay(0.5, function()
-				if orb.Parent then
-					OrbService._checkOrbMerging(orb, plot)
+			-- After brief natural fall, guide to landing position
+			task.delay(0.3, function()
+				if not orb.Parent then return end
+				
+				-- Remove the initial velocity and switch to position guidance
+				if bodyVelocity and bodyVelocity.Parent then
+					bodyVelocity:Destroy()
 				end
+				
+				-- Use BodyPosition for smooth guided descent
+				local bodyPosition = Instance.new("BodyPosition")
+				bodyPosition.MaxForce = Vector3.new(2000, 2000, 2000)
+				bodyPosition.P = 1200 -- Gentle guidance
+				bodyPosition.D = 400 -- Smooth damping
+				bodyPosition.Parent = orb
+				
+				-- Guide to landing position
+				local currentPos = orb.Position
+				local targetPos = Vector3.new(currentPos.X, landingY, currentPos.Z)
+				bodyPosition.Position = targetPos
+				
+				-- Once close to target, start floating animation
+				task.spawn(function()
+					while orb.Parent and bodyPosition.Parent do
+						local distance = (orb.Position - targetPos).Magnitude
+						if distance < 1 then -- Close enough to landing
+							bodyPosition:Destroy()
+							orb.Anchored = true
+							orb.Position = targetPos
+							
+							OrbService._startFloatingAnimation(orb)
+							
+							-- Check for merging after settling
+							task.delay(0.5, function()
+								if orb.Parent then
+									OrbService._checkOrbMerging(orb, plot)
+								end
+							end)
+							break
+						end
+						task.wait(0.1)
+					end
+				end)
 			end)
-		end)
+		end
 	end)
 end
 

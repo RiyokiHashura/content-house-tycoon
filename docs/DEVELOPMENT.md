@@ -38,7 +38,6 @@
   - Must have `PrimaryPart` set
   - Contains `SpawnLocation` (SpawnLocation part)
   - Contains `StreamingPC` (Part with ProximityPrompt)
-  - Contains `MonetizationServer` (Part for passive collection)
 - `HypeOrb` (Part template for resources)
 
 ### Workspace Setup
@@ -89,7 +88,7 @@ A player can:
 1. Join the game and get assigned a plot
 2. Approach their StreamingPC and see a ProximityPrompt
 3. Start a stream and see HypeOrbs spawn
-4. Collect orbs (passively or actively) and earn cash
+4. Collect orbs 
 5. Have their progress saved when they leave
 
 ### Technical Requirements
