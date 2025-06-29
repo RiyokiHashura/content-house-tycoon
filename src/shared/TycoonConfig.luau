@@ -2,16 +2,16 @@
 local TycoonConfig = {
 	Stream = {
 		Duration = 10, -- seconds
-		OrbSpawnRate = 1.5, -- orbs per second (slightly faster)
+		OrbSpawnRate = 1.2, -- orbs per second (balanced for visibility)
 		BaseReward = 10, -- cash per orb
 	},
 	
 	Orb = {
-		CollectionRange = 12, -- Detection range
-		MoveSpeed = 0.6, -- Base tween duration
+		CollectionRange = 14, -- Detection range (slightly larger for bigger orbs)
+		MoveSpeed = 0.7, -- Base tween duration
 		AccelerationFactor = 2, -- Speed multiplier as it gets closer
-		Lifetime = 12, -- seconds before auto-destroy
-		BlipSound = "rbxasset://sounds/electronicpingshort.wav", -- Collection sound
+		MergeRange = 4, -- Distance for orbs to merge together
+		Theme = "streamer", -- Visual theme identifier
 	}
 }
 

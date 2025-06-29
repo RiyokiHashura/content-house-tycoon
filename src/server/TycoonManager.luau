@@ -51,13 +51,13 @@ function TycoonManager._generateOrbs(player)
 			-- Position orb at PC
 			orb.CFrame = streamingPC.CFrame * CFrame.new(0, 2, 0)
 			
-			-- Make orb float and glow
-			orb.Material = Enum.Material.ForceField
-			orb.BrickColor = BrickColor.new("Bright yellow")
+			-- Make orb themed for streaming (like a subscriber notification or hype bubble)
+			orb.Material = Enum.Material.Neon
+			orb.BrickColor = BrickColor.new("Really red") -- YouTube red / notification color
 			orb.Shape = Enum.PartType.Ball
-			orb.Size = Vector3.new(0.8, 0.8, 0.8)
+			orb.Size = Vector3.new(1, 1, 1) -- Bigger and more visible
 			orb.CanCollide = false
-			orb.Anchored = false -- Let physics work
+			orb.Anchored = false -- Let physics work initially
 			orb:SetAttribute("OwnerId", player.UserId)
 			orb:SetAttribute("Value", config.BaseReward)
 			
@@ -71,27 +71,65 @@ function TycoonManager._generateOrbs(player)
 			)
 			bodyVelocity.Parent = orb
 			
-			-- Remove velocity after ejection (let it fall naturally)
-			task.delay(0.5, function()
+			-- Find the plot's base part for proper landing
+			local plotBase = plotData.plot:FindFirstChild("Base")
+			local landingY = plotBase and (plotBase.Position.Y + plotBase.Size.Y/2 + 1) or streamingPC.Position.Y
+			
+			-- Remove velocity after ejection and make it float above base
+			task.delay(1.2, function()
+				if not orb.Parent then return end
+				
+				-- Remove ejection velocity
 				if bodyVelocity and bodyVelocity.Parent then
 					bodyVelocity:Destroy()
 				end
+				
+				-- Anchor it and position above the base
+				orb.Anchored = true
+				local currentPos = orb.Position
+				orb.Position = Vector3.new(currentPos.X, landingY, currentPos.Z)
+				
+				-- Add gentle floating animation
+				task.spawn(function()
+					local startY = orb.Position.Y
+					local time = 0
+					while orb.Parent do
+						time = time + 0.1
+						if orb.Anchored then
+							orb.Position = Vector3.new(
+								orb.Position.X, 
+								startY + math.sin(time * 2) * 0.3, -- Gentle bob
+								orb.Position.Z
+							)
+						end
+						task.wait(0.1)
+					end
+				end)
 			end)
 			
-			-- Add slight glow effect
+			-- Add pulsing glow effect for streamer theme
 			local pointLight = Instance.new("PointLight")
-			pointLight.Brightness = 1
-			pointLight.Color = Color3.new(1, 1, 0.5) -- Warm yellow
-			pointLight.Range = 6
+			pointLight.Brightness = 2
+			pointLight.Color = Color3.new(1, 0.2, 0.2) -- Red glow like notifications
+			pointLight.Range = 8
 			pointLight.Parent = orb
+			
+			-- Pulsing animation for the glow
+			task.spawn(function()
+				while orb.Parent do
+					if pointLight.Parent then
+						pointLight.Brightness = 1.5 + math.sin(tick() * 8) * 0.5
+					end
+					task.wait(0.05)
+				end
+			end)
 			
 			streamData.orbCount = streamData.orbCount + 1
 			
-			-- Auto-destroy after lifetime
-			task.delay(TycoonConfig.Orb.Lifetime, function()
-				if orb.Parent then
-					orb:Destroy()
-				end
+			-- Check for nearby orbs to merge with
+			task.delay(2, function() -- After it's settled
+				if not orb.Parent then return end
+				TycoonManager._checkOrbMerging(orb, plotData.plot)
 			end)
 		else
 			break
@@ -134,6 +172,48 @@ function TycoonManager.collectOrb(player, orb)
 	
 	-- Destroy orb
 	orb:Destroy()
+end
+
+function TycoonManager._checkOrbMerging(orb, plot)
+	local orbPosition = orb.Position
+	local mergeRange = 4 -- studs
+	
+	-- Find nearby orbs
+	local nearbyOrbs = {}
+	for _, child in ipairs(plot:GetChildren()) do
+		if child.Name == "HypeOrb" and child ~= orb and child:GetAttribute("OwnerId") == orb:GetAttribute("OwnerId") then
+			local distance = (child.Position - orbPosition).Magnitude
+			if distance <= mergeRange then
+				table.insert(nearbyOrbs, child)
+			end
+		end
+	end
+	
+	-- If we found nearby orbs, merge them
+	if #nearbyOrbs > 0 then
+		local totalValue = orb:GetAttribute("Value") or 10
+		local newSize = orb.Size.X
+		
+		-- Absorb nearby orbs
+		for _, nearbyOrb in ipairs(nearbyOrbs) do
+			totalValue = totalValue + (nearbyOrb:GetAttribute("Value") or 10)
+			newSize = newSize + 0.2 -- Grow slightly for each merge
+			nearbyOrb:Destroy()
+		end
+		
+		-- Update the main orb
+		orb:SetAttribute("Value", totalValue)
+		orb.Size = Vector3.new(newSize, newSize, newSize)
+		
+		-- Make it more prominent with bigger glow
+		local light = orb:FindFirstChild("PointLight")
+		if light then
+			light.Range = light.Range + (#nearbyOrbs * 2)
+			light.Brightness = light.Brightness + (#nearbyOrbs * 0.5)
+		end
+		
+		print("[TycoonManager] Merged", #nearbyOrbs + 1, "orbs into value:", totalValue)
+	end
 end
 
 return TycoonManager 

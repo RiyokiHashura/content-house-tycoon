@@ -52,31 +52,61 @@ local function setupOrbMagnetism(plot)
 					Enum.EasingDirection.In
 				)
 				
-				local targetPosition = character.PrimaryPart.Position + Vector3.new(0, 1, 0) -- Slightly above player
+				local targetPosition = character.PrimaryPart.Position + Vector3.new(0, 2, 0) -- Slightly above player
 				local tween = TweenService:Create(orb, tweenInfo, {
 					Position = targetPosition,
-					Size = Vector3.new(0.4, 0.4, 0.4) -- Shrink as it approaches
+					Size = Vector3.new(0.3, 0.3, 0.3), -- Shrink more dramatically
+					Transparency = 0.3 -- Fade as it approaches
 				})
 				
 				tween:Play()
 				
 				-- Play collection sound and effect
 				tween.Completed:Connect(function()
-					-- Create blip sound
+					-- Create satisfying collection sound (like notification sound)
 					local sound = Instance.new("Sound")
-					sound.SoundId = TycoonConfig.Orb.BlipSound
-					sound.Volume = 0.3
-					sound.Pitch = math.random(90, 110) / 100 -- Slight pitch variation
+					sound.SoundId = "rbxasset://sounds/electronicpingshort.wav" -- Working notification sound
+					sound.Volume = 0.5
+					sound.Pitch = math.random(120, 140) / 100 -- Higher pitch for excitement
 					sound.Parent = character.PrimaryPart
 					sound:Play()
 					
-					-- Brief flash effect
-					local flash = Instance.new("Explosion")
-					flash.Position = orb.Position
-					flash.BlastRadius = 0
-					flash.BlastPressure = 0
-					flash.Visible = false -- Just the light effect
-					flash.Parent = workspace
+					-- Create "subscriber gained" style effect
+					local burst = Instance.new("Explosion")
+					burst.Position = orb.Position
+					burst.BlastRadius = 0
+					burst.BlastPressure = 0
+					burst.Visible = false -- Just the light effect
+					burst.Parent = workspace
+					
+					-- Add brief particle-like effect
+					for i = 1, 3 do
+						local particle = Instance.new("Part")
+						particle.Size = Vector3.new(0.2, 0.2, 0.2)
+						particle.Material = Enum.Material.Neon
+						particle.BrickColor = BrickColor.new("Really red")
+						particle.Shape = Enum.PartType.Ball
+						particle.Anchored = true
+						particle.CanCollide = false
+						particle.Position = orb.Position + Vector3.new(
+							math.random(-2, 2),
+							math.random(-1, 1),
+							math.random(-2, 2)
+						)
+						particle.Parent = workspace
+						
+						-- Animate particles
+						local particleTween = TweenService:Create(particle, 
+							TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+							{
+								Position = particle.Position + Vector3.new(0, 3, 0),
+								Transparency = 1,
+								Size = Vector3.new(0.05, 0.05, 0.05)
+							}
+						)
+						particleTween:Play()
+						particleTween.Completed:Connect(function() particle:Destroy() end)
+					end
 					
 					-- Notify server
 					GameEvents.OrbCollected:FireServer(orb)
