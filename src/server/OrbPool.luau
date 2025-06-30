@@ -52,20 +52,18 @@ function OrbPool:_createNewOrb(tierName)
 	
 	local orb = Instance.new("Part")
 	orb.Shape = Enum.PartType.Ball
-	orb.Size = config.size
 	orb.CanCollide = false
 	orb.Anchored = false
 	orb.Material = Enum.Material.Neon
 	orb.Color = config.color
 	orb.Name = "SubOrb"
+	orb.Size = Vector3.new(config.size, config.size, config.size)
 	
-	-- Simple physics properties
-	orb.CustomPhysicalProperties = PhysicalProperties.new(
-		0.3,   -- Normal density
-		0.2,   -- Some friction
-		0.5,   -- Moderate bounce
-		1, 1
-	)
+	-- Add BodyVelocity for physics
+	local bodyVelocity = Instance.new("BodyVelocity")
+	bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+	bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+	bodyVelocity.Parent = orb
 	
 	return orb
 end
@@ -92,7 +90,7 @@ function OrbPool:ReturnOrb(orb, tierName)
 	
 	-- Reset to tier-specific properties
 	local config = SubTiers[tierName]
-	orb.Size = config.size
+	orb.Size = Vector3.new(config.size, config.size, config.size)
 	orb.Color = config.color
 	orb.Material = Enum.Material.Neon
 	

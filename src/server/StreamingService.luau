@@ -9,6 +9,11 @@ local OrbService = require(script.Parent.OrbService)
 local StreamingService = {}
 local activeStreams = {}
 
+-- PASSIVE INCOME SYSTEM
+local PASSIVE_INCOME_RATE = 10 -- $10 per tick
+local PASSIVE_INCOME_INTERVAL = 3 -- Every 3 seconds
+local STREAMING_MULTIPLIER = 3 -- 3x income when streaming
+
 function StreamingService.startStream(player, plotData)
 	if plotData.isStreaming then return end
 	
@@ -308,5 +313,122 @@ StreamingService.DEBUG = {
 		end
 	end
 }
+
+function StreamingService.toggleStream(player)
+	-- Toggle streaming state
+	local plotData = StreamingService._getPlayerPlotData(player)
+	if not plotData then return end
+	
+	if plotData.isStreaming then
+		StreamingService.endStream(player)
+	else
+		StreamingService.startStream(player, plotData)
+	end
+end
+
+function StreamingService._getPlayerPlotData(player)
+	-- This should integrate with your plot system
+	-- For now, create a basic structure
+	return {
+		isStreaming = false,
+		plot = workspace:FindFirstChild("TycoonPlot_" .. player.Name),
+		owner = player
+	}
+end
+
+function StreamingService.init()
+	print("[StreamingService][INIT] Streaming Service initialized")
+	
+	-- Start passive income system
+	StreamingService._startPassiveIncomeSystem()
+	
+	return StreamingService
+end
+
+function StreamingService._startPassiveIncomeSystem()
+	print("[StreamingService][PASSIVE] Starting passive income system")
+	
+	-- Generate passive income for all players every interval
+	task.spawn(function()
+		while true do
+			task.wait(PASSIVE_INCOME_INTERVAL)
+			
+			for _, player in pairs(game.Players:GetPlayers()) do
+				StreamingService._generatePassiveIncome(player)
+			end
+		end
+	end)
+end
+
+function StreamingService._generatePassiveIncome(player)
+	local leaderstats = player:FindFirstChild("leaderstats")
+	if not leaderstats or not leaderstats:FindFirstChild("Cash") then return end
+	
+	local streamData = activeStreams[player]
+	local isStreaming = streamData ~= nil
+	
+	-- Calculate income based on streaming status
+	local income = PASSIVE_INCOME_RATE
+	if isStreaming then
+		income = income * STREAMING_MULTIPLIER
+	end
+	
+	-- Award income
+	leaderstats.Cash.Value = leaderstats.Cash.Value + income
+	
+	-- Show floating income text
+	StreamingService._createPassiveIncomeText(player, income, isStreaming)
+end
+
+function StreamingService._createPassiveIncomeText(player, income, isStreaming)
+	if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+	
+	local textPart = Instance.new("Part")
+	textPart.Size = Vector3.new(1, 1, 1)
+	textPart.Position = player.Character.HumanoidRootPart.Position + Vector3.new(math.random(-3, 3), 5, math.random(-3, 3))
+	textPart.Anchored = true
+	textPart.CanCollide = false
+	textPart.Transparency = 1
+	textPart.Parent = workspace
+	
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.new(3, 0, 1.5, 0)
+	gui.StudsOffset = Vector3.new(0, 0, 0)
+	gui.Parent = textPart
+	
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = string.format("%s +$%d", isStreaming and "🎬" or "💻", income)
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBold
+	label.TextStrokeTransparency = 0
+	label.TextStrokeColor3 = Color3.new(0, 0, 0)
+	
+	-- Color based on streaming status
+	if isStreaming then
+		label.TextColor3 = Color3.fromRGB(255, 215, 0) -- Gold for streaming
+	else
+		label.TextColor3 = Color3.fromRGB(100, 255, 100) -- Green for passive
+	end
+	
+	label.Parent = gui
+	
+	-- Animate the text
+	local tween = game:GetService("TweenService"):Create(textPart,
+		TweenInfo.new(2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{Position = textPart.Position + Vector3.new(0, 4, 0)}
+	)
+	
+	local fadeTween = game:GetService("TweenService"):Create(label,
+		TweenInfo.new(2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{TextTransparency = 1}
+	)
+	
+	tween:Play()
+	fadeTween:Play()
+	
+	game:GetService("Debris"):AddItem(textPart, 2.5)
+end
 
 return StreamingService 

@@ -9,12 +9,17 @@ local TycoonManager = require(script.Parent.TycoonManager)
 local GameEvents = require(ReplicatedStorage.Shared.GameEvents)
 local StreamingService = require(script.Parent.StreamingService)
 local RoomService = require(script.Parent.RoomService)
+local TycoonBuilder = require(script.Parent.TycoonBuilder)
+local StreamerService = require(script.Parent.StreamerService)
 
 -- Disable auto character spawning
 Players.CharacterAutoLoads = false
 
 -- Initialize systems
 PlotManager.initialize()
+StreamingService.init()
+TycoonBuilder.init()
+StreamerService.init()
 
 -- Player connections
 local function onPlayerAdded(player)
@@ -38,6 +43,8 @@ local function onPlayerAdded(player)
 	task.wait(0.5)
 	if plotData.plot then
 		RoomService.setupPlayerRooms(player, plotData.plot)
+		TycoonBuilder.setupPlayer(player, plotData.plot)
+		StreamerService.setupPlayer(player, plotData.plot)
 	end
 end
 
@@ -52,28 +59,25 @@ local function onPlayerRemoving(player)
 	
 	-- Release plot
 	PlotManager.releasePlot(player)
+	
+	-- Cleanup tycoon builder system
+	TycoonBuilder.cleanup(player)
+	
+	-- Cleanup streamer system
+	StreamerService.cleanup(player)
 end
 
--- Remote event connections
+-- Setup remote event handlers
 GameEvents.StreamToggle.OnServerEvent:Connect(function(player)
 	local plotData = PlotManager.getPlayerPlot(player)
 	if plotData then
 		if plotData.isStreaming then
-			TycoonManager.endStream(player)
+			StreamingService.endStream(player)
 		else
-			TycoonManager.startStream(player, plotData)
+			StreamingService.startStream(player, plotData)
 		end
 	end
 end)
-
--- DISABLED: Old orb collection handler - now handled by OrbService directly
---[[
-GameEvents.OrbCollected.OnServerEvent:Connect(function(player, orb)
-	if orb and orb.Parent then
-		TycoonManager.collectOrb(player, orb)
-	end
-end)
---]]
 
 -- Connect events
 Players.PlayerAdded:Connect(onPlayerAdded)

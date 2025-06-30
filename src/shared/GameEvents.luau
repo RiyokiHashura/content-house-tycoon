@@ -18,5 +18,7 @@ end
 GameEvents.StreamToggle = createRemoteEvent("StreamToggle")
 GameEvents.OrbCollected = createRemoteEvent("OrbCollected")
 GameEvents.RoomPurchased = createRemoteEvent("RoomPurchased")
+GameEvents.BuildingPurchased = createRemoteEvent("BuildingPurchased")
+GameEvents.StreamerHired = createRemoteEvent("StreamerHired")
 
 return GameEvents 
