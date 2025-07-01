@@ -119,8 +119,13 @@ function TycoonBuilder._scanBuildModels(player, plot)
 				isBuilt = false
 			}
 			
-			-- Hide build initially
-			buildModel.Parent = nil
+			-- Hide build initially by making all parts invisible
+			for _, part in ipairs(buildModel:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.Transparency = 1
+					part.CanCollide = false
+				end
+			end
 			
 			table.insert(playerTycoons[player].builds, buildData)
 			
@@ -287,18 +292,16 @@ function TycoonBuilder._buildItem(player, buildId)
 		return
 	end
 	
-	-- Clone and place the build
-	local buildClone = buildData.model:Clone()
-	buildClone.Parent = playerData.plot
+	-- Reveal the existing build model (instead of cloning)
 	buildData.isBuilt = true
 	
-	-- Add satisfying build animation
-	TycoonBuilder._animateBuildAppearance(buildClone)
+	-- Add satisfying build animation (reveals the parts)
+	TycoonBuilder._animateBuildAppearance(buildData.model)
 	
 	-- STREAMER INTEGRATION: Create streamer spots for room builds
 	if buildData.buildType == "Room" and buildData.roomType and StreamerService then
 		debugLog("INTEGRATION", string.format("Creating streamer spot for %s room", buildData.roomType))
-		StreamerService.createStreamerSpot(player, buildData.roomType, buildClone)
+		StreamerService.createStreamerSpot(player, buildData.roomType, buildData.model)
 	end
 end
 
@@ -307,10 +310,14 @@ function TycoonBuilder._animateBuildAppearance(buildModel)
 	local parts = {}
 	for _, descendant in ipairs(buildModel:GetDescendants()) do
 		if descendant:IsA("BasePart") then
-			-- Store original size and make invisible
-			descendant:SetAttribute("OriginalSize", descendant.Size)
+			-- Store original size if not already stored
+			if not descendant:GetAttribute("OriginalSize") then
+				descendant:SetAttribute("OriginalSize", descendant.Size)
+			end
+			-- Start animation from size 0
 			descendant.Size = Vector3.new(0, 0, 0)
 			descendant.Transparency = 1
+			descendant.CanCollide = false
 			table.insert(parts, descendant)
 		end
 	end
@@ -333,6 +340,11 @@ function TycoonBuilder._animateBuildAppearance(buildModel)
 					TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 					{Transparency = 0}
 				)
+				
+				-- Enable collision after animation
+				task.delay(0.5, function()
+					part.CanCollide = true
+				end)
 				
 				sizeTween:Play()
 				alphaTween:Play()
